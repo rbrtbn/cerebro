@@ -16,8 +16,8 @@ prompts may be long-winded; extract the signal.
 
 A personal aggregator and assistant: the single place Rob opens to see the
 state of his digital life — emails, articles, side-project status, calendar,
-gym bookings, running coding agents — with a secondary chat surface for
-synthesis and ad-hoc questions.
+gym bookings, running coding agents — with a secondary conversational layer
+(the Concierge) for synthesis and ad-hoc questions.
 
 **Read-mostly dashboard first. Chat layer second.**
 
@@ -25,18 +25,19 @@ synthesis and ad-hoc questions.
 
 **Materialized aggregator pattern.** Cerebro owns its own SQLite database.
 Per-Source **Workers** pull data on schedules or via webhooks, normalize it
-into Cerebro's schema, and write to the local Store. Surfaces only ever read
-from the local Store.
+into Cerebro's schema, and write to the local Store. **Interfaces** read the
+Store directly. Interface-driven writes round-trip through a Source (or
+Satellite) — never via direct DB writes from Interface code.
 
 **Three roles for AI** (only Workers exist in Milestone 1):
 
 1. **Workers** — deterministic ETL. NOT agents. Plain code. No LLM calls.
-2. **Curator** — scheduled agent producing Briefs (summaries, anomaly flags,
+2. **Curator** — scheduled agent producing Digests (summaries, anomaly flags,
    ranked items) on a cadence. Writes structured output to the Store.
 3. **Concierge** — on-demand chat. Tool access to the Store (typed queries)
    and to MCP servers (for actions and uncached reads).
 
-**Outposts** are external coding agents (OpenClaw sessions, Claude Code
+**Satellites** are external coding agents (OpenClaw sessions, Claude Code
 background runs) that Cerebro observes but does not own. A future Source.
 
 ---
@@ -50,20 +51,25 @@ The **bold** terms are canonical. Aliases in parentheses are forbidden.
 - **Worker** (NOT "sync agent", "ETL job") — the deterministic-code component
   that pulls from one Source and writes to the Store. One Worker per Source.
 - **Store** (NOT "DB", "database", "cache") — the SQLite database Cerebro
-  owns. Single source of truth for the Surfaces.
-- **Surface** (NOT "frontend", "UI", "app") — a way Rob interacts with
-  Cerebro. Two exist: **Web Surface** (`apps/web`) and **Desktop Surface**
+  owns. Single source of truth for the Interfaces.
+- **Interface** (NOT "frontend", "UI", "app", "surface") — a way Rob
+  interacts with Cerebro. Reads the Store directly. Writes round-trip via
+  Sources or Satellites — never direct DB writes from Interface code.
+  Two exist: **Web Interface** (`apps/web`) and **Desktop Interface**
   (`apps/desktop`).
 - **Curator** (NOT "summary agent", "background AI") — the scheduled agent
-  that reads the Store and produces Briefs.
-- **Brief** (NOT "briefing", "summary", "digest") — the Curator's structured
-  output for a time period. Stored, versioned, rendered by Surfaces.
+  that reads the Store and produces Digests.
+- **Digest** (NOT "brief", "briefing", "summary", "report") — the Curator's
+  structured output for a time period. Stored, versioned, rendered by
+  Interfaces.
 - **Concierge** (NOT "chat", "assistant", "agent") — the on-demand
   conversational agent. Each conversation is a **Concierge Session**.
-- **Outpost** (NOT "external agent", "remote agent") — an external coding
-  agent that Cerebro observes as a Source.
+- **Satellite** (NOT "outpost", "external agent", "remote agent") — an
+  external coding agent that Cerebro observes as a Source.
 - **Sync Run** (NOT "fetch", "poll cycle") — one execution of a Worker
   against a Source. Has a status, started-at, ended-at, error.
+- **Transport** — protocol a Worker uses to reach a Source/Satellite:
+  **MCP Server** (default), **A2A**, or vendor APIs. Per-Worker detail.
 
 The full ubiquitous-language doc is at [`CONTEXT.md`](./CONTEXT.md). When the
 two disagree, CONTEXT.md is the more recent source — update this glossary.
@@ -116,10 +122,10 @@ Use Context7 MCP for library docs. Don't guess current APIs.
 
 ---
 
-## Surfaces (apps/)
+## Interfaces (apps/)
 
 - `apps/web` — primary dashboard. TanStack Start + shadcn/ui.
-  **This is Milestone 1's surface.**
+  **This is Milestone 1's Interface.**
 - `apps/desktop` — experimental OS-like UI with floating windows. base-ui +
   react-rnd + custom shell. Inspired by PostHog's UI. May later be wrapped
   in Tauri 2 for a native macOS app. **Not Milestone 1.**
@@ -227,8 +233,8 @@ workflow rule. The stops are intentional review gates.
 - No Next.js, Mastra, LangChain, OpenClaw, CopilotKit, Postgres, Docker,
   Cloudflare Workers, Tauri, react-mosaic, Biome, Turborepo, ESLint,
   Prettier.
-- No agent layer (no Curator, no Concierge). The Web Surface reads from the
-  Store; the Worker writes to the Store. That's the entire pipeline.
+- No agent layer (no Curator, no Concierge). The Web Interface reads from
+  the Store; the Worker writes to the Store. That's the entire pipeline.
 - No `apps/desktop` work. Defer the OS-like UI to a later milestone.
 - No `try`/`catch` in business logic — use Effect's typed errors.
 - No `any`. No non-null assertions (`!`). No disabling strict mode.
@@ -252,13 +258,13 @@ or whenever you sense the thread is lost — including unprompted.
 ## Milestone 1 — vertical slice
 
 **Goal:** prove the pipeline end-to-end with one Source. Add more Sources,
-the Curator, the Concierge, and the Desktop Surface only after this works
+the Curator, the Concierge, and the Desktop Interface only after this works
 and Rob has reviewed.
 
 **The slice:**
 
 `eversports-mcp Source → eversports Worker → Store (gym_bookings table) →
-Web Surface route showing upcoming bookings.`
+Web Interface route showing upcoming bookings.`
 
 That's it. No Curator, no Concierge, no other Sources, no `apps/desktop`,
 no Docker, no remote deployment.
