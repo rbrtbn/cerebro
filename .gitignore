@@ -30,6 +30,9 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# direnv
+.envrc
+
 # Editor / OS
 .DS_Store
 .idea/
