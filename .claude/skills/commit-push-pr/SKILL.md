@@ -69,8 +69,6 @@ Title = commit subject (or issue title if linked). Read `.github/pull_request_te
 ```bash
 bin/as-agent gh pr create [--draft] --title "<title>" --body "$(cat <<'EOF'
 <filled template>
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
