@@ -40,7 +40,7 @@ If on `main`, create one — never commit to `main`:
 - Conventional Commits subject, imperative mood, ≤ 72 chars, no trailing period.
 - Body explains *why*, not *what*.
 - Stage by filename — never `git add -A` / `git add .`.
-- Always include the `Co-Authored-By` trailer.
+- The `Co-Authored-By` trailer is appended automatically by the Claude Code harness — don't write it into the message yourself.
 
 ```bash
 bin/as-agent git add <files>
@@ -48,8 +48,6 @@ bin/as-agent git commit -m "$(cat <<'EOF'
 <type>: <subject>
 
 <body>
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
