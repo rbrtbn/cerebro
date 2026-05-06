@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Verify gh is authenticated as rbrtbn-agent (not rbrtbn the human) via the
-# AGENT_GH_TOKEN exposed by .envrc. Run before pushing or opening PRs.
+# Verify gh is authenticated as rbrtbn-agent (not rbrtbn the human).
+# Run from inside a session started via `bin/claude-agent` — that launcher
+# is what puts the agent's GH_TOKEN into the environment. From any other
+# shell this will see your personal gh auth and (correctly) fail.
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
 EXPECTED="rbrtbn-agent"
 
-if ! ACTUAL="$("$DIR/as-agent" gh api user -q .login 2>/dev/null)"; then
-  echo "ERROR: failed to query gh as agent." >&2
-  echo "Likely causes: .envrc not loaded ('direnv allow'), AGENT_GH_TOKEN missing/wrong." >&2
+if ! ACTUAL="$(gh api user -q .login 2>/dev/null)"; then
+  echo "ERROR: gh failed. Are you in a session started by bin/claude-agent?" >&2
   exit 1
 fi
 
 if [[ "$ACTUAL" != "$EXPECTED" ]]; then
   echo "ERROR: gh identity is '$ACTUAL', expected '$EXPECTED'." >&2
+  echo "If this shell wasn't launched via bin/claude-agent, exit and relaunch." >&2
   exit 1
 fi
 

@@ -1,15 +1,15 @@
 ---
 name: commit-push-pr
-description: Authoritative for commits, pushes, and PRs in the Cerebro repo. Wraps every git and gh call so the agent identity loaded from `.envrc` (`AGENT_GH_TOKEN`, `AGENT_GIT_{AUTHOR,COMMITTER}_*`) is opted into per-call — without it, commits get attributed to rbrtbn (the human) instead of rbrtbn-agent. Use whenever the user asks to commit, push, open a PR, mark a PR ready, or finish a branch in this working directory.
+description: Authoritative for commits, pushes, and PRs in the Cerebro repo. Encodes branch/commit/PR conventions for the rbrtbn-agent identity. Assumes the session was launched via `bin/claude-agent`, which preloads `AGENT_*` from `.envrc` so plain `git` and `gh` are attributed to the agent. Use whenever the user asks to commit, push, open a PR, mark a PR ready, or finish a branch in this working directory.
 ---
 
 # commit-push-pr (Cerebro)
 
 ## Why this exists
 
-`.envrc` exports the agent's GitHub identity under `AGENT_*` names so a regular shell in this directory keeps the human's `gh auth` and git config untouched. The agent identity is **opt-in**: only this skill (or a manual invocation of `scripts/as-agent`) maps the `AGENT_*` vars onto the names git and gh actually read (`GH_TOKEN`, `GIT_{AUTHOR,COMMITTER}_*`). Plain `git` / `gh` here will be attributed to the human.
+`.envrc` exports the agent's GitHub identity under `AGENT_*` names so a regular shell in this directory keeps the human's `gh auth` and git config untouched. The agent identity is **opt-in at session launch**: starting Claude via `bin/claude-agent` remaps `AGENT_*` onto the names git and gh actually read (`GH_TOKEN`, `GIT_{AUTHOR,COMMITTER}_*`) for the entire session, so plain `git` / `gh` here become rbrtbn-agent.
 
-The wrapper also runs `direnv exec .` internally, so callers don't need to think about whether direnv is loaded ambiently (it isn't, in Claude's Bash tool).
+If you're running in a session that wasn't launched via `bin/claude-agent`, plain `git` / `gh` will be attributed to the human — exit and relaunch rather than committing under the wrong identity.
 
 ## Pre-flight: identity check (once per session, before the first push)
 
@@ -21,11 +21,11 @@ Exits non-zero if gh isn't authenticated as `rbrtbn-agent`. **Stop and surface t
 
 ## Workflow
 
-Every git/gh command goes through `bin/as-agent`. Capture state in parallel first:
+Capture state in parallel first:
 
-- `bin/as-agent git status`
-- `bin/as-agent git diff HEAD`
-- `bin/as-agent git branch --show-current`
+- `git status`
+- `git diff HEAD`
+- `git branch --show-current`
 
 ### 1. Branch
 
@@ -33,7 +33,7 @@ If on `main`, create one — never commit to `main`:
 
 - Issue-linked work → `<issue-number>-<kebab-slug>` (e.g. `7-eversports-worker`).
 - Otherwise → short kebab-slug (e.g. `docs-readme-naming`).
-- `bin/as-agent git checkout -b <branch>`
+- `git checkout -b <branch>`
 
 ### 2. Commit
 
@@ -42,8 +42,8 @@ If on `main`, create one — never commit to `main`:
 - Stage by filename — never `git add -A` / `git add .`.
 
 ```bash
-bin/as-agent git add <files>
-bin/as-agent git commit -m "$(cat <<'EOF'
+git add <files>
+git commit -m "$(cat <<'EOF'
 <type>: <subject>
 
 <body>
@@ -53,7 +53,7 @@ EOF
 
 ### 3. Push
 
-`bin/as-agent git push -u origin <branch>` (drop `-u` if upstream is already set).
+`git push -u origin <branch>` (drop `-u` if upstream is already set).
 
 ### 4. Open the PR — draft vs ready
 
@@ -61,13 +61,13 @@ Decide by readiness, not by reflex:
 
 | Situation | Open as |
 | --- | --- |
-| Work is complete: `vp check` green, `vp test` green, all acceptance criteria from the issue checked, description fully filled in | **non-draft** (omit `--draft`) — or, if you already created a draft this session, run `as-agent gh pr ready <pr>` |
+| Work is complete: `vp check` green, `vp test` green, all acceptance criteria from the issue checked, description fully filled in | **non-draft** (omit `--draft`) — or, if you already created a draft this session, run `gh pr ready <pr>` |
 | In-flight work — first commit on a branch with more to come, or any gate not yet green | **`--draft`** |
 
 Title = commit subject (or issue title if linked). Read `.github/pull_request_template.md` and fill it in for the body — every section, "n/a" only when a section truly doesn't apply.
 
 ```bash
-bin/as-agent gh pr create [--draft] --title "<title>" --body "$(cat <<'EOF'
+gh pr create [--draft] --title "<title>" --body "$(cat <<'EOF'
 <filled template>
 EOF
 )"
@@ -77,7 +77,7 @@ Return the PR URL.
 
 ## Don'ts
 
-- Never run plain `git` / `gh` in this repo. If you catch a missing `as-agent` prefix, rerun the command with it.
+- Never run `git` / `gh` from a session that wasn't launched via `bin/claude-agent` — the commit/PR will attribute to the human. If unsure, run the identity check.
 - Never push to `main`. Branch protection rejects it server-side anyway.
 - Never `--no-verify` or `--no-gpg-sign` unless the user explicitly asks.
 - Don't mark a draft ready until the gates above are green.
