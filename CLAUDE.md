@@ -197,16 +197,17 @@ cerebro/
 
 ### Commit / PR mechanics
 
-For **all** commits, pushes, and PRs in this repo, use the project skill at
+Launch Claude in this repo via `bin/claude-agent` — it loads the `AGENT_*`
+identity from `.envrc` and remaps it onto the names git and gh read, so
+plain `git` / `gh` inside the session are attributed to **rbrtbn-agent**,
+not to **rbrtbn** the human. Branch, commit, and PR conventions live in
 [`.claude/skills/commit-push-pr/`](.claude/skills/commit-push-pr/SKILL.md).
-It wraps every git and gh call through `bin/as-agent` (a symlink into the
-skill's `scripts/`), which loads the `AGENT_*` identity from `.envrc` and
-remaps it onto the names git and gh read — so commits and PRs are
-attributed to **rbrtbn-agent**, not to **rbrtbn** the human.
 
-**Never** invoke the global `commit-commands:commit-push-pr` skill or run
-raw `git commit` / `gh pr create` here. Both will silently use Rob's
-personal credentials and mis-attribute the work.
+If you're in a session that wasn't launched via `bin/claude-agent`, plain
+`git commit` / `gh pr create` will silently use Rob's personal credentials
+and mis-attribute the work — exit and relaunch rather than committing
+under the wrong identity. **Never** invoke the global
+`commit-commands:commit-push-pr` skill here for the same reason.
 
 ### File-size guardrails
 

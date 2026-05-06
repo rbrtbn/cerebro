@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Launch Claude Code with the agent's GitHub identity preloaded into the
+# environment. Inside this session, plain `git` and `gh` are attributed to
+# rbrtbn-agent, not to rbrtbn the human — no per-call wrapper needed.
+#
+# .envrc exposes the agent's secrets under AGENT_* names so a regular shell
+# in this directory keeps the human's gh auth and git config untouched.
+# This launcher remaps AGENT_* onto the names git and gh actually read,
+# then exec's claude with that environment.
+#
+# Usage: bin/claude-agent [claude args...]
+
+exec direnv exec . bash -c '
+  export GH_TOKEN="${AGENT_GH_TOKEN:?AGENT_GH_TOKEN missing — is .envrc loaded?}"
+  export GIT_AUTHOR_NAME="${AGENT_GIT_AUTHOR_NAME:?AGENT_GIT_AUTHOR_NAME missing}"
+  export GIT_AUTHOR_EMAIL="${AGENT_GIT_AUTHOR_EMAIL:?AGENT_GIT_AUTHOR_EMAIL missing}"
+  export GIT_COMMITTER_NAME="${AGENT_GIT_COMMITTER_NAME:?AGENT_GIT_COMMITTER_NAME missing}"
+  export GIT_COMMITTER_EMAIL="${AGENT_GIT_COMMITTER_EMAIL:?AGENT_GIT_COMMITTER_EMAIL missing}"
+  exec claude "$@"
+' bash "$@"
